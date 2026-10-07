@@ -75,9 +75,12 @@ export const loadConfig = async (filename?: string) => {
   return data;
 };
 
-export const handleAutoCatch = async () => {
+export const handleAutoCatch = async (config?: any) => {
   console.log("toggle");
-  const response = await fetch("/auto-catch", { method: "POST" });
+  const response = await fetch("/auto-catch", {
+    method: "POST", headers: { 'Content-Type': 'application/json' },
+    body: config ? JSON.stringify(config) : undefined,
+  });
   const data = await response.json();
   console.log(data);
   return data;

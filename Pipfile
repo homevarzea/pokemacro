@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 pywebview = "*"
 flask = "*"
+frida = "==17.17.0"
 pyinstaller = "*"
 pythonnet = "*"
 cefpython3 = "*"

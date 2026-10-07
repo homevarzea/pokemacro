@@ -379,11 +379,36 @@ def execute_crop_area():
     except Exception as e:
         return {"message": f"Error during cropping: {str(e)}"}
     
-def toggle_auto_catch():
+def toggle_auto_catch(config_override=None):
     global auto_catch_enabled, auto_catch_hook, cached_auto_catch_config, pokeball_trigger_key
 
     # Load the current auto catch configuration from file and store it in our cache
-    config = load_from_file("autocatch.json")
+    config = config_override if isinstance(config_override, dict) else load_from_file("autocatch.json")
+    if config.get('mode', 'game') == 'game':
+        from modules import game_client
+        try:
+            if game_client.status().get('enabled'):
+                result = game_client.command('stop')
+            else:
+                result = game_client.command('start', {
+                    'ballId': config.get('ballId', 3552),
+                    'ballName': config.get('ballName', 'Ultra Ball' if config.get('ballId', 3552) == 3552 else ''),
+                    'pokemonNames': config.get('pokemonNames', ['Oddish', 'Gloom']),
+                })
+            auto_catch_enabled = bool(result.get('enabled'))
+            return {'auto_catch_enabled': auto_catch_enabled, 'game': result,
+                    'message': f"Auto Catch {'enabled' if auto_catch_enabled else 'disabled'}"}
+        except Exception as error:
+            auto_catch_enabled = False
+            return {'auto_catch_enabled': False, 'error': str(error), 'message': str(error)}
+
+    # Disable an existing image hook even when its settings were edited.
+    if auto_catch_enabled:
+        if auto_catch_hook is not None:
+            keyboard.unhook(auto_catch_hook)
+            auto_catch_hook = None
+        auto_catch_enabled = False
+        return {'auto_catch_enabled': False, 'message': 'Auto Catch disabled'}
     if not config or not config.get("hotkey"):
         print("No hotkey set for Auto Catch.")
         return {

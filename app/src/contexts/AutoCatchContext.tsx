@@ -16,11 +16,19 @@ export interface SelectedImage {
 export interface AutoCatchConfig {
   selectedImages: SelectedImage[];
   hotkey: string;
+  mode: 'game' | 'image';
+  ballId: number;
+  ballName: string;
+  pokemonNames: string[];
 }
 
 export const defaultAutoCatchConfig: AutoCatchConfig = {
   selectedImages: [],
   hotkey: "",
+  mode: 'game',
+  ballId: 3552,
+  ballName: 'Ultra Ball',
+  pokemonNames: ['Oddish', 'Gloom'],
 };
 
 type AutoCatchContextType = {
@@ -47,6 +55,10 @@ const AutoCatchProvider = ({ children }: PropsWithChildren) => {
         setAutoCatchConfig({
           selectedImages: config.selectedImages || [],
           hotkey: config.hotkey || defaultAutoCatchConfig.hotkey,
+          mode: config.mode || 'game',
+          ballId: config.ballId || 3552,
+          ballName: config.ballName || (!config.ballId || config.ballId === 3552 ? 'Ultra Ball' : ''),
+          pokemonNames: config.pokemonNames || ['Oddish', 'Gloom'],
         });
       }
       setInitialized(true);

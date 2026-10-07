@@ -112,9 +112,10 @@ const Navbar = () => {
     handleAutoCombo(currentCombo);
   };
 
-  const toggleAutoCatch = () => {
-    setAutoCatch(!autoCatch);
-    handleAutoCatch();
+  const toggleAutoCatch = async () => {
+    const result = await handleAutoCatch();
+    setAutoCatch(Boolean(result.auto_catch_enabled));
+    if (result.error) window.alert(result.error);
   };
 
   const toggleAutoRevive = async () => {

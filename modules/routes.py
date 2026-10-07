@@ -84,8 +84,45 @@ def crop_image():
 
 @app.route('/auto-catch', methods=['POST'])
 def auto_catch():
-    result = toggle_auto_catch()
+    result = toggle_auto_catch(request.get_json(silent=True))
     return jsonify(result)
+
+@app.route('/game-bridge/status', methods=['GET'])
+def game_bridge_status():
+    from modules import game_client
+    return jsonify(game_client.status())
+
+@app.route('/game-bridge/connect', methods=['POST'])
+def game_bridge_connect():
+    from modules import game_client
+    try:
+        return jsonify(game_client.connect())
+    except Exception as error:
+        return jsonify({'connected': False, 'enabled': False, 'error': str(error)}), 400
+
+@app.route('/game-bridge/config', methods=['POST'])
+def game_bridge_config():
+    from modules import game_client
+    try:
+        return jsonify(game_client.command('configure', request.get_json() or {}))
+    except Exception as error:
+        return jsonify({'error': str(error)}), 400
+
+@app.route('/game-bridge/balls/detect', methods=['POST'])
+def game_bridge_detect_balls():
+    from modules import game_client
+    try:
+        return jsonify(game_client.command('discover_balls'))
+    except Exception as error:
+        return jsonify({'error': str(error)}), 400
+
+@app.route('/game-bridge/balls/cancel', methods=['POST'])
+def game_bridge_cancel_ball_detection():
+    from modules import game_client
+    try:
+        return jsonify(game_client.command('cancel_ball_discovery'))
+    except Exception as error:
+        return jsonify({'error': str(error)}), 400
 
 # Endpoint to serve a single image file
 @app.route('/images/<filename>', methods=['GET'])
