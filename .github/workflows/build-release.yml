@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,6 +19,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -86,28 +94,23 @@ jobs:
 
       - name: Create Release Archive
         run: |
-          if (Test-Path "dist/pokemacro.exe") {
-            echo "Creating release archive with single executable..."
-            powershell "Compress-Archive -Path 'dist/pokemacro.exe' -DestinationPath 'pokemacro-release.zip'"
-            echo "✓ Archive created: pokemacro-release.zip"
-          } elseif (Test-Path "dist/pokemacro") {
-            echo "Creating release archive with folder structure..."
-            powershell "Compress-Archive -Path 'dist/pokemacro/*' -DestinationPath 'pokemacro-release.zip'"
-            echo "✓ Archive created: pokemacro-release.zip"
-          } else {
-            echo "✗ No files found to archive!"
-            exit 1
-          }
-          
-          echo "Final archive details:"
-          $archive = Get-ChildItem "pokemacro-release.zip"
-          echo "Archive size: $([math]::Round($archive.Length / 1MB, 2)) MB"
+          @'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          executable = Path('dist/pokemacro.exe')
+          with ZipFile('pokemacro-release.zip', 'w', ZIP_DEFLATED, compresslevel=1, allowZip64=True) as archive:
+              archive.write(executable, 'pokemacro.exe')
+          with ZipFile('pokemacro-release.zip') as archive:
+              assert archive.getinfo('pokemacro.exe').file_size == executable.stat().st_size
+          print(f'Archive created: {Path("pokemacro-release.zip").stat().st_size} bytes')
+          '@ | pipenv run python
+          if ($LASTEXITCODE -ne 0) { throw 'Release archive creation failed' }
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: pokemacro-release.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
