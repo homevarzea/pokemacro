@@ -1,10 +1,10 @@
 {
-  "version": "4.0.12",
+  "version": "4.0.13",
   "app_name": "Pokemacro",
   "description": "Pokemon automation tool",
   "authors": "Home Varzea",
-  "github_repo": "HiVGamesInc/pokemacro",
+  "github_repo": "homevarzea/pokemacro",
   "auto_update_enabled": true,
   "update_check_interval": 3600,
-  "release_notes_url": "https://github.com/HiVGamesInc/pokemacro/releases"
+  "release_notes_url": "https://github.com/homevarzea/pokemacro/releases"
 }

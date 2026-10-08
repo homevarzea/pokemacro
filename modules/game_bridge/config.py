@@ -10,6 +10,9 @@ def normalize_config(data):
     if not valid_ball_name(ball_name):
         raise ValueError('Detect balls in an open bag and select one by name')
     ball_name = ball_name.strip()
+    interval = data.get('catchIntervalMs', 500)
+    if type(interval) is not int or not 100 <= interval <= 3000:
+        raise ValueError('Choose a ball interval between 100 and 3000 milliseconds')
     names = data.get('pokemonNames', ['Oddish', 'Gloom'])
     if not isinstance(names, list) or len(names) > 100:
         raise ValueError('Invalid Pokémon selection')
@@ -22,7 +25,7 @@ def normalize_config(data):
             seen.add(name.casefold())
             selected.append(name)
     # The Lua runtime also checks this pair against its discovered ball catalog.
-    return {'ballId': ball_id, 'ballName': ball_name, 'pokemonNames': selected}
+    return {'ballId': ball_id, 'ballName': ball_name, 'catchIntervalMs': interval, 'pokemonNames': selected}
 
 
 def valid_ball_name(name):

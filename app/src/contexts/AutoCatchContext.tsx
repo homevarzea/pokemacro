@@ -19,6 +19,7 @@ export interface AutoCatchConfig {
   mode: 'game' | 'image';
   ballId: number;
   ballName: string;
+  catchIntervalMs: number;
   pokemonNames: string[];
 }
 
@@ -28,6 +29,7 @@ export const defaultAutoCatchConfig: AutoCatchConfig = {
   mode: 'game',
   ballId: 3552,
   ballName: 'Ultra Ball',
+  catchIntervalMs: 500,
   pokemonNames: ['Oddish', 'Gloom'],
 };
 
@@ -58,6 +60,7 @@ const AutoCatchProvider = ({ children }: PropsWithChildren) => {
           mode: config.mode || 'game',
           ballId: config.ballId || 3552,
           ballName: config.ballName || (!config.ballId || config.ballId === 3552 ? 'Ultra Ball' : ''),
+          catchIntervalMs: config.catchIntervalMs || 500,
           pokemonNames: config.pokemonNames || ['Oddish', 'Gloom'],
         });
       }

@@ -11,6 +11,8 @@ a = Analysis(
         ('modules', 'modules'),
         ('configs', 'configs'),
         ('tesseract-ocr', 'tesseract-ocr'),
+        ('version.json', '.'),
+        ('tests/game_catch_runtime.lua', 'tests'),
     ],
     hiddenimports=[
         'keyboard', 
@@ -23,11 +25,13 @@ a = Analysis(
         'pythoncom',
         'pynput',
         'pynput.mouse',
-        'pynput.keyboard'
+        'pynput.keyboard',
+        'frida',
+        'frida._frida',
     ],  # Adicione imports ocultos se necessário
     hookspath=[],                # Adicione caminhos para hooks customizados se necessário
     runtime_hooks=[],            # Adicione runtime hooks se necessário
-    excludes=[],
+    excludes=['cefpython3'],  # Legacy CEF does not support this Python 3.12 release.
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

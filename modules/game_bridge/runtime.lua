@@ -1,8 +1,12 @@
 -- All map/item access and item use take place on the client's own Lua thread.
-local previous = _G.pokemacroAutoCatch and _G.pokemacroAutoCatch.status()
-if _G.pokemacroAutoCatch then _G.pokemacroAutoCatch.shutdown() end
+local previous
+if _G.pokemacroAutoCatch then
+  local ok, snapshot = pcall(_G.pokemacroAutoCatch.status)
+  if ok then previous = snapshot end
+  pcall(_G.pokemacroAutoCatch.shutdown)
+end
 local state = {enabled = false, attempts = 0, detected = 0, seen = {}, lease = 0,
-  config = {ballId = 3552, ballName = 'Ultra Ball', pokemonNames = {'Oddish', 'Gloom'}},
+  config = {ballId = 3552, ballName = 'Ultra Ball', catchIntervalMs = 500, pokemonNames = {'Oddish', 'Gloom'}},
   balls = {[3552] = 'Ultra Ball'}, discovery = {active = false, checked = 0, total = 0, found = 0},
   names = {[4189] = 'Oddish', [4301] = 'Gloom'}, last_attempt = 0, last_look = -1000}
 local api = {}
@@ -27,7 +31,9 @@ end
 local function corpses()
   local player = g_game.getLocalPlayer()
   if not player then return {}, nil end
-  local pos, found = player:getPosition(), {}
+  local pos = player:getPosition()
+  if not pos then return {}, nil end
+  local found = {}
   for _, tile in pairs(g_map.getTiles(pos.z)) do
     local p = tile:getPosition()
     local dx, dy = math.abs(p.x - pos.x), math.abs(p.y - pos.y)
@@ -85,7 +91,7 @@ local function scan()
       end
     end
   end
-  if g_clock.millis() - state.last_attempt >= 500 then
+  if g_clock.millis() - state.last_attempt >= state.config.catchIntervalMs then
     for _, corpse in ipairs(found) do
       local name = state.names[corpse.id]
       if name and selected[name:lower()] and not state.seen[corpse.item] then
@@ -101,7 +107,7 @@ local function scan()
       end
     end
   end
-  state.event = scheduleEvent(scan, 200)
+  state.event = scheduleEvent(scan, 100)
 end
 
 function api.configure(config)
@@ -110,7 +116,12 @@ function api.configure(config)
   if not state.balls[id] or state.balls[id] ~= name then
     error('Detect balls in an open bag and select a recognized ball')
   end
+  local interval = config.catchIntervalMs or state.config.catchIntervalMs
+  if type(interval) ~= 'number' or interval ~= math.floor(interval) or interval < 100 or interval > 3000 then
+    error('Choose a ball interval between 100 and 3000 milliseconds')
+  end
   state.config.ballId, state.config.ballName = id, name
+  state.config.catchIntervalMs = interval
   if config.pokemonNames then state.config.pokemonNames = config.pokemonNames end
   return api.status()
 end

@@ -19,6 +19,9 @@ const AutoCatch = () => {
   const [bridge, setBridge] = useState<any>({ connected: false });
   const [error, setError] = useState('');
   const [pokemonName, setPokemonName] = useState('');
+  const [intervalInput, setIntervalInput] = useState(String(autoCatchConfig.catchIntervalMs));
+
+  useEffect(() => { setIntervalInput(String(autoCatchConfig.catchIntervalMs)); }, [autoCatchConfig.catchIntervalMs]);
 
   useEffect(() => {
     let active = true;
@@ -128,6 +131,25 @@ const AutoCatch = () => {
             <Button onClick={toggleGameCatch} disabled={loading || detecting || (!autoCatch && (autoCatchConfig.pokemonNames.length === 0 || !autoCatchConfig.ballName))} variant="primary">
               {autoCatch ? 'Stop Auto Catch' : 'Start Auto Catch'}
             </Button>
+          </div>
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+            <h3 className="text-base font-semibold text-gray-100">Catch speed</h3>
+            <p className="text-sm text-gray-400 mt-1">Choose the minimum time between balls. Each corpse still receives one attempt.</p>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              <label htmlFor="catch-interval" className="text-sm text-gray-300">Interval between balls (ms)</label>
+              <input id="catch-interval" type="number" min={100} max={3000} step={100}
+                value={intervalInput} disabled={autoCatch || loading}
+                onChange={e => {
+                  setIntervalInput(e.target.value);
+                  const value = Number(e.target.value);
+                  if (Number.isInteger(value) && value >= 100 && value <= 3000) setAutoCatchConfig(prev => ({ ...prev, catchIntervalMs: value }));
+                }}
+                onBlur={() => setIntervalInput(String(autoCatchConfig.catchIntervalMs))}
+                className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-gray-100 w-28" />
+              <Button disabled={autoCatch || loading} variant="default" onClick={() => setAutoCatchConfig(prev => ({ ...prev, catchIntervalMs: 300 }))}>Fast · 300 ms</Button>
+              <Button disabled={autoCatch || loading} variant="default" onClick={() => setAutoCatchConfig(prev => ({ ...prev, catchIntervalMs: 500 }))}>Normal · 500 ms</Button>
+            </div>
+            {autoCatch && <p className="text-sm text-gray-400 mt-3">Stop Auto Catch to change the speed.</p>}
           </div>
           <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
             <h3 className="text-base font-semibold text-gray-100">Ball to use</h3>

@@ -5,6 +5,9 @@ on:
     tags:
       - "*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   build-release:
     runs-on: windows-latest
@@ -32,13 +35,25 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install pipenv
-          pipenv install --dev
+          pipenv sync --dev
+
+      - name: Validate bridge configuration and worker entry
+        run: pipenv run python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: Build .exe with PyInstaller
         run: |
-          pipenv run build
+          pipenv run pyinstaller --noconfirm --clean main.spec
           echo "Build completed. Listing all files in dist directory:"
           dir dist
+
+      - name: Validate the portable executable
+        run: |
+          $resultPath = Join-Path $env:GITHUB_WORKSPACE 'bridge-bundle-test.json'
+          $process = Start-Process -FilePath (Join-Path $env:GITHUB_WORKSPACE 'dist/pokemacro.exe') -ArgumentList @('--bridge-self-test', $resultPath) -WindowStyle Hidden -PassThru -Wait
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $resultPath)) { throw 'Portable bridge self-test failed' }
+          $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+          if (-not $result.passed -or -not $result.frozen) { throw 'The executable does not contain a working bridge' }
+          Get-Content -LiteralPath $resultPath
 
       - name: List build artifacts
         run: |

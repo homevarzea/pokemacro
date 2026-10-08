@@ -16,6 +16,12 @@ Você pode abrir outras bolsas e repetir a detecção para acrescentar tipos.
 **Cancel detection** interrompe a consulta, e **Stop Auto Catch** interrompe
 os lançamentos.
 
+Em **Catch speed**, configure o intervalo entre balls de 100 a 3000 ms.
+Os atalhos **Fast · 300 ms** e **Normal · 500 ms** preenchem o campo.
+A configuração é salva automaticamente e aplicada ao iniciar. Pare o Auto
+Catch antes de alterar a velocidade. O mapa é consultado a cada 100 ms;
+o tempo de resposta do servidor também influencia a velocidade efetiva.
+
 As balls adicionais são identificadas
 pela descrição de **Empty ... Ball(s)** enviada pelo servidor: a quantidade
 precisa corresponder à pilha consultada, e uma segunda consulta confirma
@@ -46,7 +52,7 @@ A leitura usa tiles no mesmo andar, até sete tiles na horizontal e cinco
 na vertical. O uso é feito por `g_game.useInventoryItemWith`, sem coordenadas
 de mouse. Cada objeto de corpse recebe uma tentativa; corpos removidos
 saem do registro para que novos corpos no mesmo tile possam ser usados.
-Há pelo menos 500 ms entre tentativas.
+O intervalo mínimo entre tentativas segue a configuração de velocidade.
 
 O processo elevado aceita apenas operações fixas de iniciar, parar,
 configurar, detectar/cancelar a detecção de balls e consultar o estado.
@@ -58,11 +64,23 @@ Os testes de configuração e a simulação Lua verificam a seleção, a detecç
 sem lançamentos, a exclusão de outros itens, a confirmação da descrição,
 a parada por falta da ball escolhida e a prevenção de tentativas repetidas.
 
-Esta integração está disponível na execução Python do projeto. Instale
-as dependências do Pipfile.lock. O perfil Frida 17.17.0 é específico do
+O `.exe` da release inclui Python, Frida e os scripts da ponte. Extraia o
+ZIP e execute `pokemacro.exe`; não é necessário instalar Python, Frida ou
+o projeto frida-decrypt. Apenas o processo da ponte solicita elevação.
+As configurações e os catálogos pessoais ficam em `%APPDATA%/Pokemacro`.
+
+Na execução Python do projeto, instale as dependências do Pipfile.lock.
+O perfil Frida 17.17.0 é específico do
 cliente x64 com SHA-256
 `5db2cf3f15ae5e92ea6843a8a80011723146068b409dda930387521d123f6e33`.
 O hash e os bytes das funções Lua são verificados antes da conexão.
+O executável é localizado pelo processo aberto; o jogo pode estar instalado
+em outra pasta. Abra apenas um cliente compatível antes de conectar.
+
+O workflow valida os testes Python e executa `--bridge-self-test` no `.exe`
+gerado antes de publicar. Essa verificação carrega a extensão nativa do
+Frida e confere os recursos incluídos, sem conectar a um jogo. Ao conectar,
+a ponte também executa a simulação Lua antes de habilitar o Auto Catch.
 
 O modo **Image recognition** conserva a configuração anterior por imagens
 e suas hotkeys.

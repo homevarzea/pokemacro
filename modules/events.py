@@ -393,6 +393,7 @@ def toggle_auto_catch(config_override=None):
                 result = game_client.command('start', {
                     'ballId': config.get('ballId', 3552),
                     'ballName': config.get('ballName', 'Ultra Ball' if config.get('ballId', 3552) == 3552 else ''),
+                    'catchIntervalMs': config.get('catchIntervalMs', 500),
                     'pokemonNames': config.get('pokemonNames', ['Oddish', 'Gloom']),
                 })
             auto_catch_enabled = bool(result.get('enabled'))

@@ -1,6 +1,7 @@
 -- Runs against an isolated fake game; never uses the live g_game object.
 return function(source)
   local now, count, calls, player_online = 1000, 10, 0, true
+  local position_available = true
   local visible, events, handlers, bags = {}, {}, {}, {}
   local ball_counts, last_used, look_override = {[60001] = 4}, nil, nil
   local function corpse(id)
@@ -8,7 +9,7 @@ return function(source)
   end
   local tile = {getPosition = function() return {x = 1, y = 1, z = 7} end,
     getItems = function() return visible end}
-  local player = {getPosition = function() return {x = 0, y = 0, z = 7} end}
+  local player = {getPosition = function() if position_available then return {x = 0, y = 0, z = 7} end end}
   local env = setmetatable({}, {__index = _G})
   env._G = env
   env.g_clock = {millis = function() return now end}
@@ -38,8 +39,8 @@ return function(source)
     return event
   end
   env.removeEvent = function(event) event.cancelled = true end
-  local function tick()
-    now = now + 200
+  local function tick(delay)
+    now = now + (delay or 200)
     local current = events
     events = {}
     for _, event in ipairs(current) do
@@ -133,13 +134,27 @@ return function(source)
   api.restore_ball_catalog({['60007'] = 'Saved Ball'})
   api.configure({ballId = 60007, ballName = 'Saved Ball'})
   assert(api.status().config.ballName == 'Saved Ball', 'saved ball catalog can be reused after connecting')
+  assert(not pcall(api.configure, {catchIntervalMs = 50}), 'reject invalid ball intervals')
+  count = 10; visible = {corpse(4301), corpse(4189)}
+  api.configure({ballId = 3552, ballName = 'Ultra Ball', pokemonNames = {'Gloom', 'Oddish'}, catchIntervalMs = 300})
+  local fast_before = calls
+  api.start()
+  tick(100); tick(100)
+  assert(calls == fast_before + 1, 'respect the configured interval before the second ball')
+  tick(100)
+  assert(calls == fast_before + 2, 'dispatch the second ball at the configured 300 ms interval')
+  api.stop()
   count = 10; visible = {}
   api.start({ballId = 3552, ballName = 'Ultra Ball', pokemonNames = {'Gloom'}})
   now = now + 13000; tick()
   assert(not api.status().enabled and api.status().reason == 'connection_lost')
+  position_available = false
+  api.start({pokemonNames = {'Gloom'}})
+  assert(not api.status().online and not api.status().enabled and api.status().reason == 'offline', 'missing player position must not crash the bridge')
+  position_available = true
   api.start({pokemonNames = {'Gloom'}})
   player_online = false; tick()
   assert(not api.status().enabled and api.status().reason == 'offline')
   api.shutdown()
-  return {passed = true, cases = 20, attempts = calls}
+  return {passed = true, cases = 23, attempts = calls}
 end

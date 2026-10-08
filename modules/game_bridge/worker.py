@@ -12,7 +12,7 @@ import frida
 from config import normalize_config, normalize_ball_catalog
 
 ROOT = Path(__file__).resolve().parent
-EXE = Path(os.environ['LOCALAPPDATA']) / 'PokeAlliance Games/PokeAlliance/PokeAlliance_gl.exe'
+CLIENT_NAME = 'PokeAlliance_gl.exe'
 BUILD = '5db2cf3f15ae5e92ea6843a8a80011723146068b409dda930387521d123f6e33'
 parser = argparse.ArgumentParser()
 parser.add_argument('--directory', type=Path, required=True)
@@ -84,7 +84,23 @@ kernel.OpenProcess.restype = ctypes.c_void_p
 kernel.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
 kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
 kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+kernel.QueryFullProcessImageNameW.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_uint32)]
+kernel.QueryFullProcessImageNameW.restype = ctypes.c_int
 parent_handle = kernel.OpenProcess(0x100000, False, args.parent)
+
+
+def client_executable(pid):
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        raise RuntimeError('Windows did not allow reading the game executable path')
+    try:
+        size = ctypes.c_uint32(32768)
+        path = ctypes.create_unicode_buffer(size.value)
+        if not kernel.QueryFullProcessImageNameW(handle, 0, path, ctypes.byref(size)):
+            raise RuntimeError('Could not identify the running PokeAlliance executable')
+        return Path(path.value)
+    finally:
+        kernel.CloseHandle(handle)
 
 try:
     profile = json.loads((ROOT / 'balls.json').read_text(encoding='utf-8'))
@@ -94,15 +110,16 @@ try:
     saved_catalog.update(normalize_ball_catalog(profile.get('balls')))
     if not parent_handle:
         raise RuntimeError('Pokemacro process is no longer running')
-    if hashlib.sha256(EXE.read_bytes()).hexdigest() != BUILD:
-        raise RuntimeError('PokeAlliance was updated; the Lua bridge needs a new verified profile')
     device = frida.get_local_device()
     pid = args.pid
     if pid is None:
-        matches = [p for p in device.enumerate_processes() if p.name.lower() == EXE.name.lower()]
+        matches = [p for p in device.enumerate_processes() if p.name.lower() == CLIENT_NAME.lower()]
         if len(matches) != 1:
             raise RuntimeError('Open one PokeAlliance client before connecting')
         pid = matches[0].pid
+    executable = client_executable(pid)
+    if executable.name.lower() != CLIENT_NAME.lower() or hashlib.sha256(executable.read_bytes()).hexdigest() != BUILD:
+        raise RuntimeError('PokeAlliance was updated; the Lua bridge needs a new verified profile')
     session = device.attach(pid)
     script = session.create_script((ROOT / 'lua_bridge.js').read_text(encoding='utf-8'))
     script.load()

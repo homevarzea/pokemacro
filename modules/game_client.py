@@ -31,6 +31,14 @@ def status():
     return data
 
 
+def worker_launch():
+    if getattr(sys, 'frozen', False):
+        return sys.executable, ['--game-bridge-worker'], Path(sys.executable).parent
+    project_python = ROOT.parent / '.venv/Scripts/python.exe'
+    interpreter = str(project_python) if project_python.exists() else sys.executable
+    return interpreter, ['-B', str(ROOT / 'game_bridge/worker.py')], ROOT.parent
+
+
 def connect():
     global _session, _launcher
     with _lock:
@@ -38,32 +46,32 @@ def connect():
             return status()
         if _launcher is not None and _launcher.poll() is None:
             raise RuntimeError('Confirm the pending Windows administrator prompt before reconnecting')
-        if getattr(sys, 'frozen', False):
-            raise RuntimeError('Use the Python development version for this Frida client profile')
         DIRECTORY.mkdir(parents=True, exist_ok=True)
         _session = uuid.uuid4().hex
-        project_python = ROOT.parent / '.venv/Scripts/python.exe'
-        interpreter = str(project_python) if project_python.exists() else sys.executable
+        interpreter, prefix, working_directory = worker_launch()
         worker_arguments = [
-            '-B', str(ROOT / 'game_bridge/worker.py'), '--directory', str(DIRECTORY),
+            *prefix, '--directory', str(DIRECTORY),
             '--parent', str(os.getpid()), '--session', _session,
         ]
         shell = ctypes.WinDLL('shell32', use_last_error=True)
         if shell.IsUserAnAdmin():
-            launcher = subprocess.Popen([interpreter, *worker_arguments], creationflags=subprocess.CREATE_NO_WINDOW)
+            launcher = subprocess.Popen([interpreter, *worker_arguments], cwd=working_directory,
+                                        env={**os.environ, 'PYINSTALLER_RESET_ENVIRONMENT': '1'},
+                                        creationflags=subprocess.CREATE_NO_WINDOW)
         else:
             # Start-Process handles elevation on its own initialized Windows thread.
             # Calling ShellExecute directly on Flask's request thread can hang.
             quote = lambda value: "'" + str(value).replace("'", "''") + "'"
-            command_line = ('Start-Process -FilePath ' + quote(interpreter)
+            command_line = ("$env:PYINSTALLER_RESET_ENVIRONMENT = '1'\nStart-Process -FilePath " + quote(interpreter)
                             + ' -ArgumentList ' + quote(subprocess.list2cmdline(worker_arguments))
-                            + ' -WorkingDirectory ' + quote(ROOT.parent)
+                            + ' -WorkingDirectory ' + quote(working_directory)
                             + ' -Verb RunAs -WindowStyle Hidden -ErrorAction Stop')
             with (DIRECTORY / 'launcher.log').open('a', encoding='utf-8') as log:
                 launcher = subprocess.Popen(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command_line],
                                             stdout=log, stderr=log, creationflags=subprocess.CREATE_NO_WINDOW)
         _launcher = launcher
-        deadline = time.monotonic() + 25
+        # A portable worker may need to unpack the one-file bundle first.
+        deadline = time.monotonic() + (60 if getattr(sys, 'frozen', False) else 25)
         while time.monotonic() < deadline:
             data = _read('status.json')
             if data.get('session') == _session:
